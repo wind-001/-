@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MovieRec - 智能电影推荐</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #e50914; /* Netflix Red */
+            --bg-color: #141414;
+            --card-bg: #2f2f2f;
+            --text-main: #ffffff;
+            --text-dim: #b3b3b3;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            font-family: 'Noto Sans SC', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            background: var(--card-bg);
+            width: 100%;
+            max-width: 500px;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+
+        header { text-align: center; margin-bottom: 30px; }
+        header h1 { font-size: 24px; color: var(--primary-color); letter-spacing: 2px; }
+        header p { color: var(--text-dim); font-size: 14px; margin-top: 5px; }
+
+        .form-group { margin-bottom: 25px; }
+        .form-group label { display: block; margin-bottom: 12px; font-weight: bold; font-size: 15px; }
+
+        /* 标签式多选优化 */
+        .genre-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .genre-item { position: relative; }
+        .genre-item input {
+            position: absolute;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .genre-label {
+            display: block;
+            padding: 8px;
+            background: #444;
+            text-align: center;
+            border-radius: 4px;
+            font-size: 13px;
+            transition: all 0.3s;
+            cursor: pointer;
+            border: 1px solid transparent;
+        }
+
+        .genre-item input:checked + .genre-label {
+            background: var(--primary-color);
+            border-color: #fff;
+        }
+
+        /* 范围滑块美化 */
+        input[type=range] {
+            width: 100%;
+            accent-color: var(--primary-color);
+            background: #444;
+            height: 6px;
+            border-radius: 5px;
+            appearance: none;
+        }
+
+        .rating-info {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 10px;
+            font-size: 13px;
+            color: var(--primary-color);
+            font-weight: bold;
+        }
+
+        /* 提交按钮 */
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s, opacity 0.2s;
+            margin-top: 10px;
+        }
+
+        .submit-btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .submit-btn:disabled { background: #666; cursor: not-allowed; }
+
+        /* 加载动画 */
+        .loader {
+            display: none;
+            text-align: center;
+            margin-top: 15px;
+        }
+        .spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <h1>MovieRec</h1>
+        <p>基于 MovieLens 的深度精准推荐</p>
+    </header>
+
+    <form id="preferenceForm">
+        {% csrf_token %}
+        <div class="form-group">
+            <label>1. 你钟情的电影类型</label>
+            <div class="genre-grid">
+                <label class="genre-item"><input type="checkbox" name="genres" value="Action"><span class="genre-label">动作</span></label>
+                <label class="genre-item"><input type="checkbox" name="genres" value="Comedy"><span class="genre-label">喜剧</span></label>
+                <label class="genre-item"><input type="checkbox" name="genres" value="Drama"><span class="genre-label">剧情</span></label>
+                <label class="genre-item"><input type="checkbox" name="genres" value="Sci-Fi"><span class="genre-label">科幻</span></label>
+                <label class="genre-item"><input type="checkbox" name="genres" value="Romance"><span class="genre-label">爱情</span></label>
+                <label class="genre-item"><input type="checkbox" name="genres" value="Thriller"><span class="genre-label">惊悚</span></label>
+                <label class="genre-item"><input type="checkbox" name="genres" value="Animation"><span class="genre-label">动画</span></label>
+                <label class="genre-item"><input type="checkbox" name="genres" value="Horror"><span class="genre-label">恐怖</span></label>
+                <label class="genre-item"><input type="checkbox" name="genres" value="Adventure"><span class="genre-label">冒险</span></label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>2. 最低期待评分</label>
+            <input type="range" id="ratingRange" name="min_rating" min="1" max="5" step="0.5" value="3.5">
+            <div class="rating-info">
+                <span>1.0</span>
+                <span id="ratingValue">当前设定: 3.5+</span>
+                <span>5.0</span>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>3. 观影活跃度</label>
+            <select name="user_level" style="width:100%; padding:10px; background:#444; color:white; border:none; border-radius:4px;">
+                <option value="new">新影迷 (每月 < 2部)</option>
+                <option value="active">资深影迷 (每周 1-3部)</option>
+                <option value="pro">电影发烧友 (每天看)</option>
+            </select>
+        </div>
+
+        <button type="submit" class="submit-btn" id="submitBtn">开启推荐之旅</button>
+    </form>
+
+    <div class="loader" id="loader">
+        <div class="spinner"></div>
+        <p style="font-size: 12px; margin-top: 10px;">AI 正在计算你的专属片单...</p>
+    </div>
+</div>
+
+<script>
+    // 动态显示评分
+    const range = document.getElementById('ratingRange');
+    const display = document.getElementById('ratingValue');
+    range.addEventListener('input', (e) => {
+        display.innerText = `当前设定: ${e.target.value}+`;
+    });
+
+    // 提交逻辑
+    document.getElementById('preferenceForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        // 1. 获取选中的类型
+        const selectedGenres = Array.from(document.querySelectorAll('input[name="genres"]:checked'))
+                                   .map(cb => cb.value);
+
+        if (selectedGenres.length === 0) {
+            alert('请至少选择一个喜欢的电影类型！');
+            return;
+        }
+
+        // 2. 封装数据
+        const formData = {
+            genres: selectedGenres,
+            minRating: parseFloat(range.value),
+            userLevel: document.getElementsByName('user_level')[0].value,
+            timestamp: new Date().getTime()
+        };
+
+        // 3. UI 状态切换
+        const btn = document.getElementById('submitBtn');
+        const loader = document.getElementById('loader');
+        btn.disabled = true;
+        btn.innerText = '处理中...';
+        loader.style.display = 'block';
+
+        // 4. 发送 API 请求 (替换为你的真实后端接口)
+        try {
+            const csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            const response = await fetch('../collect/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrftoken 
+                },
+                body: JSON.stringify(formData)
+            });
+
+            if (response.ok) { // 推荐使用 response.ok，它涵盖了 200-299 范围
+                const result = await response.json();
+                console.log('服务器返回:', result);
+                alert('推荐成功！偏好已记录。');
+                // 如果你想刷新页面或跳转：
+                window.location.href = '/index/'; 
+            } else {
+                // 处理 401 (未登录) 或 400 (格式错误)
+                const errorData = await response.json();
+                alert('失败：' + (errorData.error || '未知错误'));
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('连接后端失败，请检查 API 接口配置。');
+        } finally {
+            btn.disabled = false;
+            btn.innerText = '开启推荐之旅';
+            loader.style.display = 'none';
+        }
+    });
+</script>
+
+</body>
+</html>

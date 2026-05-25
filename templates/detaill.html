@@ -1,0 +1,374 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ movie.title }} - MovieRec{% endblock %}
+
+{% block content %}
+<div id="global-toast" class="toast-message"></div>
+
+<div class="movie-detail-container">
+    <header class="header">
+        <div class="logo">MovieRec</div>
+        <nav class="nav">
+            <a href="/" class="nav-link">首页</a>
+            <a href="/category" class="nav-link">分类</a>
+            <a href="/rank/" class="nav-link">排行榜</a>
+            <a href="/profile" class="nav-link">我的</a>
+            <span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+            {% if user.is_authenticated %}
+                <span style="color: darkgrey;font-size: medium;cursor: pointer;">欢迎您! {{ user.username }}</span>
+                <a href="{% url 'logout' %}">注销</a>
+            {% else %}
+                <a href="{% url 'login' %}">登录</a>
+                <a href="{% url 'register' %}">注册</a>
+            {% endif %}
+        </nav>
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="搜索电影...">
+            <button onclick="searchMovie()">🔍搜索</button>
+        </div>
+    </header>
+
+    <main class="movie-detail">
+        <a href="javascript:history.back()" class="back-btn">← 返回上一页</a>
+        <div class="movie-detail-content">
+            <div class="movie-poster">
+                <img src="{{ movie.poster_url }}" alt="{{ movie.title }}" width="300" height="450">
+            </div>
+            <div class="movie-info">
+                <h1 class="movie-title">{{ movie.title }}</h1>
+                <div class="movie-meta">
+                    <span class="movie-id">ID: {{ movie.id }}</span>
+                    <span class="movie-year">上映年份: {{ movie.year }}</span>
+                    <span class="movie-genre">类型: {{ movie.genre }}</span>
+                    <span class="movie-rating">⭐ <span id="display-rating">{{ movie.rating }}</span></span>
+                </div>
+                <div class="movie-description">
+                    <h3>剧情简介</h3>
+                    <p>{{ movie.description }}</p>
+                </div>
+                <div class="movie-actions">
+                    <button class="btn-watchlist" id="watchlist-btn">收藏电影</button>
+                    <button class="btn-rate" id="rate-btn">评分</button>
+                </div>
+                
+                <div id="success-message" style="display: none; color: #4CAF50; margin-top: 20px;">
+                    ✅ 收藏成功！
+                </div>
+            </div>
+        </div>
+
+        <section class="recommendations">
+            <h2>{{ rec_section_title|default:"更多推荐" }}</h2>
+            <div class="recommendation-grid">
+                {% for rec in recommendations %}
+                <div class="rec-card">
+                     <img src="{{ rec.poster_url }}" alt="{{ rec.title }}" loading="lazy" width="180" height="270">
+                    <div class="rec-title">{{ rec.title }}</div>
+                    <div class="rec-genre">{{ rec.genre }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
+</div>
+
+<div id="rate-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h3>为《{{ movie.title }}》打分</h3>
+        <div class="star-rating">
+            <span class="star" data-value="5">★</span>
+            <span class="star" data-value="4">★</span>
+            <span class="star" data-value="3">★</span>
+            <span class="star" data-value="2">★</span>
+            <span class="star" data-value="1">★</span>
+        </div>
+        <p id="rating-hint" style="color: #888; margin-bottom: 15px;">请点击星星评分</p>
+        <button id="submit-rating" class="btn-watchlist" style="width: 100%;">确认提交</button>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // 基础变量
+    const movieId = "{{ movie.id }}";
+    const watchlistBtn = document.getElementById('watchlist-btn');
+    const successMessage = document.getElementById('success-message');
+    
+    // 评分相关变量
+    const rateBtn = document.getElementById('rate-btn');
+    const rateModal = document.getElementById('rate-modal');
+    const closeModal = document.querySelector('.close-modal');
+    const stars = document.querySelectorAll('.star');
+    const submitRatingBtn = document.getElementById('submit-rating');
+    const toast = document.getElementById('global-toast');
+    let selectedRating = 0;
+
+    // --- 工具函数：获取 CSRF Token ---
+    function getCookie(name) {
+        let r = document.cookie.match("\\b" + name + "=([^;]*)\\b");
+        return r ? r[1] : undefined;
+    }
+
+    // --- 顶部渐变提示显示函数 ---
+    function showToast(message, isError = false) {
+        toast.innerText = message;
+        toast.style.background = isError ? "rgba(244, 67, 54, 0.9)" : "rgba(76, 175, 80, 0.9)";
+        toast.classList.add('show');
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 2000); // 2秒后消失
+    }
+
+    // --- 1. 收藏功能逻辑 ---
+    watchlistBtn.addEventListener('click', function () {
+        axios.post('/collection/', { movie_id: movieId }, {
+            headers: { 'X-CSRFToken': getCookie('csrftoken') }
+        })
+        .then(res => {
+            if (res.data.status === 'success') {
+                successMessage.style.display = 'block';
+                setTimeout(() => successMessage.style.display = 'none', 1500);
+            } else {
+                alert(res.data.message || '收藏失败');
+            }
+        })
+        .catch(() => alert('请先登录后再收藏'));
+    });
+
+    // --- 2. 评分弹窗交互 ---
+    // 打开弹窗
+    rateBtn.addEventListener('click', () => {
+        rateModal.style.display = 'block';
+    });
+    // 关闭弹窗
+    closeModal.addEventListener('click', () => rateModal.style.display = 'none');
+    window.addEventListener('click', (e) => {
+        if (e.target == rateModal) rateModal.style.display = 'none';
+    });
+
+    // 星星点击选择
+    stars.forEach(star => {
+        star.addEventListener('click', function() {
+            selectedRating = this.getAttribute('data-value');
+            // 移除所有星星的选中状态
+            stars.forEach(s => s.classList.remove('active'));
+            // 为当前及之前的星星添加高亮（CSS中通过逆序选择器处理）
+            this.classList.add('active');
+            document.getElementById('rating-hint').innerText = `您选择了 ${selectedRating} 星`;
+            document.getElementById('rating-hint').style.color = "#ffca08";
+        });
+    });
+
+    // --- 3. 提交评分到后端 ---
+    submitRatingBtn.addEventListener('click', function() {
+        if (selectedRating === 0) {
+            alert("请选择评分后再提交");
+            return;
+        }
+
+        axios.post('/rate_movie/', { // 需对应 Django 中的 URL
+            movie_id: movieId,
+            rating: selectedRating
+        }, {
+            headers: { 
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken') 
+            }
+        })
+        .then(response => {
+            if (response.data.status === 'success') {
+                rateModal.style.display = 'none';
+                showToast("✅ 评分成功！感谢反馈");
+                // (可选) 实时更新页面上的平均分
+                if(response.data.new_rating) {
+                    document.getElementById('display-rating').innerText = response.data.new_rating;
+                }
+            } else {
+                alert(response.data.message || "评分失败");
+            }
+        })
+        .catch(error => {
+            console.error(error);
+            alert("评分失败，请检查是否已登录");
+        });
+    });
+});
+
+// 搜索功能
+function searchMovie() {
+    const searchText = document.getElementById('searchInput').value.trim();
+    if (searchText) {
+        window.location.href = `/search/${searchText}/`;
+    } else {
+        alert("请输入要搜索的电影名称");
+    }
+}
+</script>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 保持你原有的 body, header, nav 等样式不变... */
+   /* 全局样式复用 */
+    body {
+        background-color: #121212;
+        color: #ffffff;
+        font-family: 'Segoe UI', sans-serif;
+        margin: 0;
+        padding: 0;
+    }
+
+    .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1rem 2rem;
+        background-color: rgba(18, 18, 18, 0.95);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+    }
+
+    .logo {
+        font-size: 1.8rem;
+        font-weight: bold;
+        color: #ffffff;
+    }
+
+    .nav {
+        display: flex;
+        gap: 2rem;
+    }
+
+    .nav-link {
+        color: #ffffff;
+        text-decoration: none;
+        transition: color 0.3s;
+    }
+
+    .nav-link:hover {
+        color: #ff4444;
+    }
+
+    /* [新添加] 顶部渐变提示框 */
+    .toast-message {
+        position: fixed;
+        top: -60px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(76, 175, 80, 0.9);
+        color: white;
+        padding: 12px 35px;
+        border-radius: 50px;
+        z-index: 2000;
+        transition: all 0.5s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+        opacity: 0;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        font-weight: bold;
+    }
+    .toast-message.show {
+        top: 30px;
+        opacity: 1;
+    }
+
+    /* [新添加] 评分模态框样式 */
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1001;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0,0,0,0.85);
+        backdrop-filter: blur(5px);
+    }
+    .modal-content {
+        background-color: #1e1e1e;
+        margin: 12% auto;
+        padding: 30px;
+        border-radius: 15px;
+        width: 320px;
+        text-align: center;
+        border: 1px solid #333;
+        box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        position: relative;
+    }
+    .close-modal {
+        position: absolute;
+        right: 15px;
+        top: 10px;
+        font-size: 28px;
+        color: #888;
+        cursor: pointer;
+    }
+    .close-modal:hover { color: white; }
+
+    /* [新添加] 五星评分交互样式 */
+    .star-rating {
+        display: flex;
+        flex-direction: row-reverse; /* 关键：反向排列 */
+        justify-content: center;
+        font-size: 45px;
+        margin: 10px 0;
+    }
+    .star {
+        cursor: pointer;
+        color: #333;
+        transition: transform 0.2s, color 0.2s;
+        padding: 0 2px;
+    }
+    .star:hover { transform: scale(1.2); }
+    /* 鼠标悬停及其左侧所有星星变亮 (利用了row-reverse) */
+    .star:hover, .star:hover ~ .star, 
+    .star.active, .star.active ~ .star {
+        color: #ffca08;
+    }
+
+    /* 其余原有样式 */
+    .movie-detail-container { min-height: 100vh; }
+    .movie-detail { padding: 2rem; max-width: 1200px; margin: 0 auto; }
+    .back-btn {
+        display: inline-block;
+        color: #bbb;
+        text-decoration: none;
+        font-size: 14px;
+        margin-bottom: 20px;
+        padding: 6px 14px;
+        border: 1px solid rgba(255,255,255,0.15);
+        border-radius: 20px;
+        transition: all 0.3s;
+    }
+    .back-btn:hover { color: #fff; border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.05); }
+    .movie-detail-content { display: flex; gap: 2rem; margin-bottom: 3rem; }
+    .movie-poster { flex: 0 0 300px; }
+    .movie-poster img { width: 100%; border-radius: 8px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5); }
+    .movie-info { flex: 1; }
+    .movie-title { font-size: 2.5rem; margin-bottom: 1rem; }
+    .movie-meta { display: flex; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.5rem; color: #b0b0b0; }
+    .movie-meta span { background-color: #2a2a2a; padding: 0.3rem 0.8rem; border-radius: 15px; }
+    .movie-actions { margin-top: 2rem; display: flex; gap: 1rem; }
+    .btn-watchlist, .btn-rate { padding: 0.8rem 1.5rem; border-radius: 25px; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
+    .btn-watchlist { background-color: #ff4444; color: #ffffff; }
+    .btn-watchlist:hover { background-color: #cc0000; }
+    .btn-rate { background-color: #2a2a2a; color: #ffffff; }
+    .btn-rate:hover { background-color: #444444; }
+    
+    .recommendations h2 { color: #ff4444; margin-bottom: 1.5rem; }
+    .recommendation-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 1.5rem; }
+    .rec-card { background-color: #1e1e1e; border-radius: 8px; overflow: hidden; transition: transform 0.3s; }
+    .rec-card:hover { transform: translateY(-5px); }
+    .rec-card img { width: 100%; height: 250px; object-fit: cover; }
+    .rec-title { padding: 0.5rem; font-weight: bold; }
+    .rec-genre { padding: 0 0.5rem 0.5rem; color: #b0b0b0; font-size: 0.9rem; }
+    .search-box { display: flex; align-items: center; background: rgba(255,255,255,0.15); padding: 6px 15px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); }
+    .search-box input { background: transparent; border: none; outline: none; color: white; width: 140px; transition: 0.4s; }
+    .search-box input:focus { width: 220px; }
+    .search-box button { background: none; border: none; color: white; cursor: pointer; font-size: 16px; }
+</style>
+{% endblock %}

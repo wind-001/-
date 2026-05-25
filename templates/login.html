@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登录 - MovieRec</title>
+    <!-- 引入Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 引入Font Awesome图标 -->
+    <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+    <!-- 引入Vue 2 -->
+    <script src="https://cdn.jsdelivr.net/npm/vue@2.7.16/dist/vue.js"></script>
+    <script>
+        // 配置Tailwind主题，匹配原页面风格
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#000000',
+                        secondary: '#333333',
+                        accent: '#f8fafc',
+                        placeholder: '#6b7280',
+                        disabled: '#4a4a4a'
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style type="text/tailwindcss">
+        @layer utilities {
+            .bg-blur {
+                backdrop-filter: blur(8px);
+                -webkit-backdrop-filter: blur(8px);
+            }
+            .text-shadow {
+                text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+            }
+        }
+    </style>
+</head>
+<body class="bg-black text-accent min-h-screen flex flex-col">
+    <!-- 导航栏（与原页面完全一致） -->
+    <nav class="bg-primary py-4 px-6 md:px-12 flex items-center justify-between sticky top-0 z-50">
+        <a href="index.html" class="text-2xl font-bold tracking-wider">MovieRec</a>
+        <!-- 桌面端导航 -->
+        <div class="hidden md:flex items-center space-x-8">
+            <a href="{% url 'login' %}" class="hover:text-gray-300 transition-colors">首页</a>
+            <a href="#" class="hover:text-gray-300 transition-colors">分类</a>
+            <a href="#" class="hover:text-gray-300 transition-colors">排行榜</a>
+            <a href="#" class="hover:text-gray-300 transition-colors">我的</a>
+            <a href="{% url 'login' %}" class="hover:text-gray-300 transition-colors">登录</a>
+        </div>
+        <!-- 搜索框 -->
+        <div class="relative hidden md:block w-64">
+            <input 
+                type="text" 
+                placeholder="搜索电影..." 
+                class="w-full bg-secondary rounded-full px-4 py-2 pl-10 text-sm focus:outline-none focus:ring-2 focus:ring-gray-500"
+            >
+            <i class="fa fa-search absolute left-3 top-1/2 -translate-y-1/2 text-placeholder"></i>
+        </div>
+        <!-- 移动端菜单按钮 -->
+        <button class="md:hidden text-accent">
+            <i class="fa fa-bars text-xl"></i>
+        </button>
+    </nav>
+
+    <!-- 主内容区 -->
+    <main class="flex-1 flex items-center justify-center px-4 py-12 bg-cover bg-center" 
+          style="background-image: url('https://picsum.photos/id/1060/1920/1080'); background-color: #1a1a1a; background-blend-mode: multiply;"
+          id="app">
+        <!-- 登录卡片 -->
+        <div class="w-full max-w-md bg-secondary/80 bg-blur rounded-lg shadow-2xl p-8 border border-gray-700">
+            <h2 class="text-3xl font-bold mb-8 text-center">账号登录</h2>
+            <!-- 后端错误提示 -->
+            {% if error_msg %}
+            <div class="bg-red-500/20 border border-red-500 text-red-400 rounded-lg px-4 py-3 mb-6 text-sm text-center">
+                {{ error_msg }}
+            </div>
+            {% endif %}
+            <!-- 使用默认表单提交 -->
+            <form method="post" action="/login/" class="space-y-6" id="loginForm">
+                {% csrf_token %}
+                <input type="hidden" name="next" :value="nextUrl">
+                <!-- 用户名输入 -->
+                <div>
+                    <label class="block text-gray-300 mb-2 text-sm">用户名</label>
+                    <div class="relative">
+                        <i class="fa fa-user absolute left-3 top-1/2 -translate-y-1/2 text-placeholder"></i>
+                        <input 
+                            type="text" 
+                            name="username"
+                            v-model="form.username"
+                            @blur="validateUsername"
+                            class="w-full bg-primary border border-gray-600 rounded-lg px-10 py-3 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+                            placeholder="请输入用户名"
+                            required
+                        >
+                    </div>
+                    <span v-show="errors.username" class="text-red-400 text-xs mt-1">[[ errors.usernameMessage ]]</span>
+                </div>
+                <!-- 密码输入 -->
+                <div>
+                    <label class="block text-gray-300 mb-2 text-sm">密码</label>
+                    <div class="relative">
+                        <i class="fa fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-placeholder"></i>
+                        <input 
+                            type="password" 
+                            name="password"
+                            v-model="form.password"
+                            @blur="validatePassword"
+                            class="w-full bg-primary border border-gray-600 rounded-lg px-10 py-3 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors"
+                            placeholder="请输入密码"
+                            required
+                        >
+                        <button 
+                            type="button" 
+                            @click="togglePasswordVisibility"
+                            class="absolute right-3 top-1/2 -translate-y-1/2 text-placeholder hover:text-accent"
+                        >
+                            <i :class="showPassword ? 'fa fa-eye' : 'fa fa-eye-slash'"></i>
+                        </button>
+                    </div>
+                    <span v-show="errors.password" class="text-red-400 text-xs mt-1">[[ errors.passwordMessage ]]</span>
+                </div>
+                <!-- 记住我 & 忘记密码 -->
+                <div class="flex items-center justify-between">
+                    <label class="flex items-center space-x-2 cursor-pointer">
+                        <input 
+                            type="checkbox" 
+                            name="remembered"
+                            v-model="form.remembered"
+                            class="accent-gray-500"
+                        >
+                        <span class="text-gray-400 text-sm">记住我</span>
+                    </label>
+                    <a href="#" class="text-gray-400 text-sm hover:text-accent transition-colors">忘记密码？</a>
+                </div>
+                <!-- 登录按钮 -->
+                <button 
+                    type="submit"
+                    @click.prevent="handleSubmit"
+                    class="w-full bg-gray-800 hover:bg-gray-700 text-accent font-semibold rounded-lg py-3 transition-colors flex items-center justify-center"
+                    :disabled="isSubmitting"
+                >
+                    <i class="fa fa-sign-in mr-2"></i>
+                    [[ isSubmitting ? '登录中...' : '登录系统' ]]
+                </button>
+                <!-- 注册引导 -->
+                <div class="text-center text-gray-400 text-sm">
+                    还没有账号？
+                    <a href="{% url 'register' %}" class="text-accent hover:text-gray-300 transition-colors">立即注册</a>
+                </div>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        // 创建Vue实例
+        new Vue({
+            el: '#app',
+            delimiters: ['[[', ']]'],
+            data() {
+                return {
+                    form: {
+                        username: '',
+                        password: '',
+                        remembered: false
+                    },
+                    // 新增：从 URL 获取 next 参数
+                    nextUrl: new URLSearchParams(window.location.search).get('next') || '/',
+                    errors: {
+                        username: false,
+                        usernameMessage: '请输入用户名',
+                        password: false,
+                        passwordMessage: '请输入密码'
+                    },
+                    showPassword: false,
+                    isSubmitting: false
+                }
+            },
+            methods: {
+                // 切换密码显示/隐藏
+                togglePasswordVisibility() {
+                    this.showPassword = !this.showPassword;
+                    const passwordInput = document.querySelector('input[name="password"]');
+                    if (passwordInput) {
+                        passwordInput.type = this.showPassword ? 'text' : 'password';
+                    }
+                },
+
+                // 验证用户名
+                validateUsername() {
+                    const username = this.form.username.trim();
+                    if (!username) {
+                        this.errors.username = true;
+                        this.errors.usernameMessage = '请输入用户名';
+                        return false;
+                    }
+                    this.errors.username = false;
+                    return true;
+                },
+
+                // 验证密码
+                validatePassword() {
+                    const password = this.form.password;
+                    if (!password) {
+                        this.errors.password = true;
+                        this.errors.passwordMessage = '请输入密码';
+                        return false;
+                    }
+                    this.errors.password = false;
+                    return true;
+                },
+
+                // 验证整个表单
+                validateForm() {
+                    const validations = [
+                        this.validateUsername(),
+                        this.validatePassword()
+                    ];
+                    return validations.every(valid => valid);
+                },
+
+                // 处理表单提交 - 保持默认表单提交
+                handleSubmit(event) {
+    event.preventDefault();
+    if (!this.validateForm()) return;
+
+    this.isSubmitting = true;
+    
+    const form = document.getElementById('loginForm');
+    if (form) {
+        // 获取当前浏览器地址栏的所有参数
+        const currentParams = window.location.search; 
+        if (currentParams) {
+            // 强行把 ?next=xxx 拼接到 action 后面
+            // 这样无论后端读 POST 还是读 GET 都能拿到
+            form.action = "/login/" + currentParams;
+        }
+        form.submit();
+    }
+}
+            },
+            // 监听showPassword变化，更新输入框类型
+            watch: {
+                showPassword(newVal) {
+                    const passwordInput = document.querySelector('input[name="password"]');
+                    if (passwordInput) {
+                        passwordInput.type = newVal ? 'text' : 'password';
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html>

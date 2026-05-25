@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <title>排行榜 - 基于NCF的电影推荐系统</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+         body {
+            margin: 0;
+            font-family: 'Segoe UI', 'PingFang SC', sans-serif;
+            background-color: #0b0b0b;
+            color: white;
+            overflow-x: hidden;
+        }
+
+        /* --- 1. 导航栏样式 (与主页完全一致) --- */
+        .navbar {
+            position: fixed;
+            width: 100%;
+            padding: 20px 60px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(15px);
+            background: rgba(0,0,0,0.6);
+            z-index: 2000;
+            box-sizing: border-box;
+        }
+
+        .logo {
+            font-size: 26px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            color: #ff3c3c;
+        }
+
+        .navbar nav {
+            display: flex;
+            align-items: center;
+        }
+
+        .navbar a {
+            margin-left: 25px;
+            color: white;
+            text-decoration: none;
+            transition: 0.3s;
+            font-size: 16px;
+        }
+
+        .navbar a:hover {
+            color: #ff3c3c;
+        }
+
+        .navbar .active {
+            color: #ff3c3c;
+        }
+
+        /* 搜索框优化 */
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: rgba(255,255,255,0.15);
+            padding: 6px 15px;
+            border-radius: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .search-box input {
+            background: transparent;
+            border: none;
+            outline: none;
+            color: white;
+            width: 140px;
+            transition: 0.4s;
+        }
+
+        .search-box input:focus {
+            width: 220px;
+        }
+
+        .search-box button {
+            background: none;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        /* --- 排行榜页面特有样式 --- */
+        .main-container {
+            padding-top: 100px; /* 给固定导航栏留空间 */
+            max-width: 1400px;
+            margin: 0 auto;
+            padding-left: 60px;
+            padding-right: 60px;
+            padding-bottom: 40px;
+        }
+        .search-box {
+            display: flex;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 6px 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .search-box input {
+            background: none;
+            border: none;
+            color: #fff;
+            outline: none;
+            width: 180px;
+            font-size: 13px;
+        }
+
+        .search-box input::placeholder {
+            color: #888;
+        }
+
+        /* 主内容区域 */
+
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .page-title {
+            font-size: 36px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #fff, #a0a0a0);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .page-subtitle {
+            color: #888;
+            font-size: 14px;
+        }
+
+        /* 榜单类型切换 */
+        .rank-tabs {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+        }
+
+        .rank-tab {
+            padding: 10px 25px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.05);
+            color: #b3b3b3;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .rank-tab:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: #fff;
+            transform: translateY(-2px);
+        }
+
+        .rank-tab.active {
+            background: linear-gradient(135deg, #e50914, #ff4757);
+            border-color: transparent;
+            color: #fff;
+            box-shadow: 0 4px 15px rgba(229, 9, 20, 0.3);
+        }
+
+        /* 榜单内容 */
+        .rank-content {
+            display: none;
+        }
+
+        .rank-content.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 电影列表 */
+        .movie-list {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .movie-item {
+            display: flex;
+            background: linear-gradient(135deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.02) 100%);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            position: relative;
+        }
+
+        .movie-item:hover {
+            transform: translateX(10px);
+            background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.03) 100%);
+            border-color: rgba(229, 9, 20, 0.3);
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+        }
+
+        /* 排名标识 */
+        .rank-number {
+            width: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 48px;
+            font-weight: bold;
+            font-style: italic;
+            position: relative;
+        }
+
+        .rank-number.top3 {
+            background: linear-gradient(135deg, #ffd700, #ffed4e);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            text-shadow: 0 0 30px rgba(255, 215, 0, 0.3);
+        }
+
+        .rank-number.normal {
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* 电影海报 */
+        .movie-poster {
+            width: 120px;
+            height: 170px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin: 15px 0;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            transition: transform 0.3s;
+        }
+
+        .movie-item:hover .movie-poster {
+            transform: scale(1.05);
+        }
+
+        /* 电影信息 */
+        .movie-info {
+            flex: 1;
+            padding: 25px 30px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .movie-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #fff;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .movie-meta {
+            display: flex;
+            gap: 15px;
+            color: #888;
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+
+        .movie-meta span {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .movie-tags {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .tag {
+            padding: 3px 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            font-size: 12px;
+            color: #b3b3b3;
+        }
+
+        .movie-desc {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.6;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        /* 评分区域 */
+        .movie-rating {
+            width: 150px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            border-left: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .rating-score {
+            font-size: 36px;
+            font-weight: bold;
+            color: #ffd700;
+            margin-bottom: 5px;
+        }
+
+        .rating-stars {
+            color: #ffd700;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .rating-count {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .trend-indicator {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            margin-top: 10px;
+            padding: 4px 10px;
+            border-radius: 12px;
+            background: rgba(0,0,0,0.3);
+        }
+
+        .trend-up {
+            color: #4caf50;
+        }
+
+        .trend-down {
+            color: #f44336;
+        }
+
+        .trend-stable {
+            color: #888;
+        }
+
+        /* 操作按钮 */
+        .movie-actions {
+            width: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            padding: 20px;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 8px 0;
+            border: none;
+            border-radius: 20px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #e50914, #ff4757);
+            color: #fff;
+        }
+
+        .btn-primary:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(229, 9, 20, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.2);
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 0 20px;
+            }
+
+            .nav-links {
+                display: none;
+            }
+
+            .movie-item {
+                flex-direction: column;
+            }
+
+            .rank-number {
+                width: 100%;
+                padding: 10px;
+                font-size: 24px;
+                justify-content: flex-start;
+            }
+
+            .movie-poster {
+                width: 100%;
+                height: 200px;
+                margin: 0;
+                border-radius: 0;
+            }
+
+            .movie-rating, .movie-actions {
+                width: 100%;
+                border-left: none;
+                border-top: 1px solid rgba(255,255,255,0.05);
+                flex-direction: row;
+                justify-content: space-between;
+            }
+        }
+
+        /* 加载动画 */
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #666;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(255,255,255,0.1);
+            border-top-color: #e50914;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+<base target="_blank">
+</head>
+<body>
+    <!-- 导航栏 -->
+       <header class="navbar">
+        <div class="logo">MovieRec</div>
+        <nav>
+            <a href="{% url 'index' %}">首页</a>
+            <a href="{% url 'category' %}">分类</a>
+            <a href="/rank/" class="active">排行榜</a>
+            <a href="/profile/" target="_self">我的</a>
+
+            <span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+            {% if user.is_authenticated %}
+               <span style="color: darkgrey;font-size: medium;cursor: pointer;">欢迎您! {{ user.username }}</span>
+                <a href="{% url 'logout' %}">注销</a>
+            {% else %}
+                <a href="{% url 'login' %}">登录</a>
+                <a href="{% url 'register' %}">注册</a>
+            {% endif %}
+        </nav>
+        <!-- 搜索框 -->
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="搜索电影...">
+            <button onclick="searchMovie()">🔍搜索</button>
+        </div>
+    </header>
+
+    <!-- 主内容 -->
+    <div class="main-container">
+        <div class="page-header">
+            <h1 class="page-title">🏆 电影排行榜</h1>
+            <p class="page-subtitle">基于推荐系统的用户行为数据的实时排名</p>
+        </div>
+
+        <!-- 榜单切换标签 -->
+        <div class="rank-tabs">
+
+            <button class="rank-tab active" onclick="switchTab('rating', this)">⭐ 评分榜</button>
+            <button class="rank-tab" onclick="switchTab('hot', this)">🔥 热度榜</button>
+            <button class="rank-tab" onclick="switchTab('ncf', this)">🤖 NCF推荐榜</button>
+            <button class="rank-tab" onclick="switchTab('new', this)">🆕 新片榜</button>
+        </div>
+
+<!-- 评分榜 -->
+<div id="rating" class="rank-content active">
+    <div class="movie-list">
+        {% for movie in rating_movies %}
+        <div class="movie-item">
+            <div class="rank-number {% if forloop.counter <= 3 %}top3{% else %}normal{% endif %}">
+                {{ forloop.counter }}
+            </div>
+            <img src="{{ movie.cover_url }}" alt="{{ movie.title }}" class="movie-poster" onerror="this.src='/static/image/default.jpg'" loading="lazy" width="120" height="170">
+            <div class="movie-info">
+                <div class="movie-title">
+                    {{ movie.title }}
+                </div>
+                <div class="movie-meta">
+                    <span>📅 {{ movie.year }}</span>
+                    <span>⭐ {{ movie.rating }}分</span>
+                </div>
+                <div class="movie-tags">
+                    {% for g in movie.genre %}
+                    <span class="tag">{{ g }}</span>
+                    {% endfor %}
+                </div>
+                <div class="movie-desc">{{ movie.profile }}</div>
+            </div>
+            <div class="movie-rating">
+                <div class="rating-score">{{ movie.rating }}</div>
+                <div class="rating-stars">{{ movie.stars }}</div>
+            </div>
+            <div class="movie-actions">
+                <button class="btn btn-primary" onclick="goDetail('{{ movie.movie_id }}')">查看详情</button>
+                <button class="btn btn-secondary" onclick="toggleWant(this, '{{ movie.movie_id }}')">+ 想看</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- 热度榜 -->
+<div id="hot" class="rank-content">
+    <div class="movie-list">
+        {% for movie in hot_movies %}
+        <div class="movie-item">
+            <div class="rank-number {% if forloop.counter <= 3 %}top3{% else %}normal{% endif %}">
+                {{ forloop.counter }}
+            </div>
+            <img src="{{ movie.cover_url }}" alt="{{ movie.title }}" class="movie-poster" onerror="this.src='/static/image/default.jpg'" loading="lazy" width="120" height="170">
+            <div class="movie-info">
+                <div class="movie-title">{{ movie.title }}</div>
+                <div class="movie-meta">
+                    <span>📅 {{ movie.year }}</span>
+                    <!-- 修复：default 用引号不是括号 -->
+                    <span>🔥 热度 {{ movie.hot_score|default:"9999+" }}</span>
+                </div>
+                <div class="movie-tags">
+                    {% for g in movie.genre %}
+                    <span class="tag">{{ g }}</span>
+                    {% endfor %}
+                </div>
+                <div class="movie-desc">{{ movie.profile }}</div>
+            </div>
+            <div class="movie-rating">
+                <div class="rating-score">{{ movie.rating }}</div>
+                <div class="rating-stars">{{ movie.stars }}</div>
+                <div class="trend-indicator trend-up">
+                    <span>↑</span> 热度飙升
+                </div>
+            </div>
+            <div class="movie-actions">
+                <button class="btn btn-primary" onclick="goDetail('{{ movie.movie_id }}')">查看详情</button>
+                <button class="btn btn-secondary" onclick="toggleWant(this, '{{ movie.movie_id }}')">+ 想看</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- NCF推荐榜 -->
+<div id="ncf" class="rank-content">
+    <div style="text-align: center; margin-bottom: 30px; padding: 20px; background: rgba(229,9,20,0.1); border-radius: 12px; border-left: 4px solid #e50914;">
+        <h3 style="color: #e50914; margin-bottom: 10px;">🤖 基于NCF算法的个性化推荐</h3>
+        <p style="color: #888; font-size: 14px;">{% if ncf_reason %}{{ ncf_reason }}{% else %}根据您的观影历史和评分行为，为您精准推荐{% endif %}</p>
+    </div>
+    <div class="movie-list">
+        {% for movie in ncf_movies %}
+        <div class="movie-item" style="border-left: 3px solid #e50914;">
+            <div class="rank-number" style="background: linear-gradient(135deg, #e50914, #ff4757); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">
+                {{ forloop.counter }}
+            </div>
+            <img src="{{ movie.cover_url }}" alt="{{ movie.title }}" class="movie-poster" onerror="this.src='/static/image/default.jpg'" loading="lazy" width="120" height="170">
+            <div class="movie-info">
+                <div class="movie-title">
+                    {{ movie.title }}
+                    <span style="font-size: 12px; background: rgba(229,9,20,0.2); color: #e50914; padding: 2px 8px; border-radius: 4px; margin-left: 8px;">推荐度 {{ movie.recommend_percent }}%</span>
+                </div>
+                <div class="movie-meta">
+                    <span>📅 {{ movie.year }}</span>
+                    <span>⭐ {{ movie.rating }}分</span>
+                </div>
+                <div class="movie-tags">
+                    {% for g in movie.genre %}
+                    <span class="tag">{{ g }}</span>
+                    {% endfor %}
+                </div>
+                <div class="movie-desc">{{ movie.profile }}</div>
+            </div>
+            <div class="movie-rating">
+                <!-- 修复：直接用后端算好的 ncf_score 和 stars -->
+                <div class="rating-score" style="color: #e50914;">{{ movie.ncf_score }}</div>
+                <div class="rating-stars">{{ movie.stars }}</div>
+                <div class="trend-indicator" style="background: rgba(229,9,20,0.2); color: #e50914;">
+                    <span>🎯</span> 为您推荐
+                </div>
+            </div>
+            <div class="movie-actions">
+                <button class="btn btn-primary" onclick="goDetail('{{ movie.movie_id }}')">查看详情</button>
+                <button class="btn btn-secondary" onclick="toggleWant(this, '{{ movie.movie_id }}')">+ 想看</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- 票房榜 -->
+<div id="boxoffice" class="rank-content active">
+    <div class="movie-list">
+        {% for movie in boxoffice_movies %}
+        <div class="movie-item">
+            <div class="rank-number {% if forloop.counter <= 3 %}top3{% else %}normal{% endif %}">{{ forloop.counter }}</div>
+            <img src="{{ movie.cover_url }}" alt="{{ movie.title }}" class="movie-poster" onerror="this.src='/static/image/default.jpg'" loading="lazy" width="120" height="170">
+            <div class="movie-info">
+                <div class="movie-title">{{ movie.title }}</div>
+                <div class="movie-meta">
+                    <span>📅 {{ movie.year }}</span>
+                    <!-- 修复：default 用引号 -->
+                    <span>💰 票房 {{ movie.box_office|default:"未知" }}</span>
+                </div>
+                <div class="movie-tags">
+                    {% for g in movie.genre %}
+                    <span class="tag">{{ g }}</span>
+                    {% endfor %}
+                </div>
+                <div class="movie-desc">{{ movie.profile }}</div>
+            </div>
+            <div class="movie-rating">
+                <div class="rating-score">{{ movie.rating }}</div>
+                <div class="rating-stars">{{ movie.stars }}</div>
+                <!-- 修复：default 用引号 -->
+                <div class="rating-count">{{ movie.rating_count|default:"10万" }}人评价</div>
+            </div>
+            <div class="movie-actions">
+                <button class="btn btn-primary" onclick="goDetail('{{ movie.movie_id }}')">查看详情</button>
+                <button class="btn btn-secondary" onclick="toggleWant(this, '{{ movie.movie_id }}')">+ 想看</button>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+        <div id="new" class="rank-content">
+            <div style="text-align: center; padding: 80px 20px; color: #888;">
+                <div style="font-size: 64px; margin-bottom: 20px;">🎬</div>
+                <h3 style="font-size: 24px; color: #fff; margin-bottom: 10px;">暂无新片</h3>
+                <p style="font-size: 14px;">敬请期待最新上映电影</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+        // 获取CSRF Token的辅助函数
+            function getCookie(name) {
+                let cookieValue = null;
+                if (document.cookie && document.cookie !== '') {
+                    const cookies = document.cookie.split(';');
+                    for (let i = 0; i < cookies.length; i++) {
+                        const cookie = cookies[i].trim();
+                        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                            cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                            break;
+                        }
+                    }
+                }
+                return cookieValue;
+            }
+
+            // 切换想看状态
+            function toggleWant(btn, movieId) {
+                const isWant = btn.textContent.includes('+');
+
+                if (isWant) {
+                    // 发送收藏请求
+                    axios.post('/collection/', { movie_id: movieId }, {
+                        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+                    })
+                    .then(res => {
+                        if (res.data.status === 'success') {
+                            btn.textContent = '✓ 已想看';
+                            btn.style.background = 'rgba(76, 175, 80, 0.2)';
+                            btn.style.color = '#4caf50';
+                            btn.style.borderColor = '#4caf50';
+                        } else {
+                            alert(res.data.message || '收藏失败');
+                        }
+                    })
+                    .catch(() => alert('请先登录后再收藏'));
+                } else {
+                    // 取消收藏
+                    btn.textContent = '+ 想看';
+                    btn.style.background = '';
+                    btn.style.color = '';
+                    btn.style.borderColor = '';
+                    // 可选：添加取消收藏的API调用
+                }
+            }
+
+            // 搜索功能
+            function searchMovie() {
+                const keyword = document.getElementById('searchInput').value;
+                if (keyword.trim()) {
+                    window.location.href = `/search/?q=${encodeURIComponent(keyword)}`;
+                }
+            }
+
+            document.getElementById('searchInput').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    searchMovie();
+                }
+            });
+
+            // 页面滚动效果
+            window.addEventListener('scroll', function() {
+                const navbar = document.querySelector('.navbar');
+                if (window.scrollY > 50) {
+                    navbar.style.background = 'rgba(20, 20, 20, 0.98)';
+                } else {
+                    navbar.style.background = 'rgba(20, 20, 20, 0.95)';
+                }
+            });
+
+            function goDetail(id) {
+                window.location.href = `/detail/${id}/`;
+            }
+
+            // 切换榜单标签
+            function switchTab(tabName, btn) {
+                document.querySelectorAll('.rank-tab').forEach(tab => tab.classList.remove('active'));
+                document.querySelectorAll('.rank-content').forEach(content => content.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById(tabName).classList.add('active');
+            }
+    </script>
+</body>
+</html>

@@ -1,0 +1,393 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block title %}{{ movie.title }} - MovieRec{% endblock %}
+
+{% block content %}
+<div class="movie-detail-container">
+    <!-- 顶部导航栏（复用现有样式） -->
+    <header class="header">
+        <div class="logo">MovieRec</div>
+        <nav class="nav">
+            <a href="/" class="nav-link">首页</a>
+            <a href="/category" class="nav-link">分类</a>
+            <a href="/hot" class="nav-link">排行榜</a>
+            <a href="/my" class="nav-link">我的</a>
+            <span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+            {% if user.is_authenticated %}
+               <span style="color: darkgrey;font-size: medium;cursor: pointer;">欢迎您! {{ user.username }}</span>
+                <a href="{% url 'logout' %}">注销</a>
+            {% else %}
+                <a href="{% url 'login' %}">登录</a>
+                <a href="{% url 'register' %}">注册</a>
+            {% endif %}
+        </nav>
+       <!-- 搜索框 -->
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="搜索电影...">
+            <button onclick="searchMovie()">🔍搜索</button>
+        </div>
+    </header>
+
+    <!-- 电影详情主体 -->
+    <main class="movie-detail">
+        <div class="movie-detail-content">
+            <!-- 左侧海报 -->
+            <div class="movie-poster">
+                <img src="{{ movie.poster_url }}" alt="{{ movie.title }}" width="300" height="450">
+
+            </div>
+
+            <!-- 右侧信息 -->
+            <div class="movie-info">
+                <h1 class="movie-title">{{ movie.title }}</h1>
+                <div class="movie-meta">
+                    <span class="movie-id">ID: {{ movie.id }}</span>
+                    <span class="movie-year">上映年份: {{ movie.year }}</span>
+                    <span class="movie-genre">类型: {{ movie.genre }}</span>
+                    <span class="movie-rating">⭐ {{ movie.rating }}</span>
+                </div>
+                <div class="movie-description">
+                    <h3>剧情简介</h3>
+                    <p>{{ movie.description }}</p>
+                </div>
+                <div class="movie-actions">
+                    <button class="btn-watchlist" id="watchlist-btn">收藏电影</button>
+                    <button class="btn-rate">评分</button>
+                </div>
+                  <!-- 添加一个隐藏的提示框，用于显示收藏成功消息 -->
+                <div id="success-message" style="display: none; color: #4CAF50; margin-top: 20px;">
+                    ✅ 收藏成功！
+                </div>
+            </div>
+        </div>
+
+        <!-- 推荐电影（可选） -->
+        <section class="recommendations">
+            <h2>更多推荐(热门推荐)</h2>
+            <div class="recommendation-grid">
+                {% for rec in recommendations %}
+                <div class="rec-card">
+                     <img src="{{ rec.poster_url }}" alt="{{ rec.title }}" loading="lazy" width="180" height="270">
+                    <div class="rec-title">{{ rec.title }}</div>
+                    <div class="rec-genre">{{ rec.genre }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+    </main>
+</div>
+{% endblock %}
+{% block extra_js %}
+<!-- 引入 Axios -->
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const watchlistBtn = document.getElementById('watchlist-btn');
+    const successMessage = document.getElementById('success-message');
+    const movieId = "{{ movie.id }}";  // Django 模板变量
+    
+    // 获取 CSRF Token（从 meta 标签或 cookie）
+    function getCookie(name) {
+    let r = document.cookie.match("\\b" + name + "=([^;]*)\\b");
+    return r ? r[1] : undefined;
+}
+
+    watchlistBtn.addEventListener('click', function () {
+        axios.post('/collection/', {
+            movie_id: movieId
+        }, {
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')  // 传递 CSRF Token
+            },
+            responseType: 'json'
+        })
+        .then(function (response) {
+            if (response.data.status === 'success') {
+                successMessage.style.display = 'block';
+                setTimeout(() => {
+                    successMessage.style.display = 'none';
+                }, 1000);
+            } else {
+                alert(response.data.message || '收藏失败！');
+            }
+        })
+        .catch(function (error) {
+            console.error('收藏失败:', error);
+            alert('收藏失败，请确保已登录！');
+        });
+    });
+});
+function searchMovie() {
+    const searchText = document.getElementById('searchInput').value.trim();
+    console.log(searchText);
+    if (searchText) {
+        // 可扩展：提交搜索请求到Django后端
+        window.location.href = `/search/${searchText}/`;
+    } else {
+        alert("请输入要搜索的电影名称");
+    }
+}
+</script>
+{% endblock %}
+{% block extra_css %}
+<style>
+    /* 全局样式复用 */
+    body {
+        background-color: #121212;
+        color: #ffffff;
+        font-family: 'Segoe UI', sans-serif;
+        margin: 0;
+        padding: 0;
+    }
+
+    /* 修改导航栏基础背景和布局 */
+.header { 
+    display: flex; 
+    justify-content: space-between; 
+    align-items: center; 
+    padding: 0.8rem 2.5rem; 
+    background-color: #1a1a1a; /* 对应图中的深灰背景 */
+    position: sticky; 
+    top: 0; 
+    z-index: 100; 
+    height: 60px;
+}
+
+/* 1. Logo 样式：红色、加粗、无下划线 */
+.logo { 
+    font-size: 1.8rem; 
+    font-weight: 800; 
+    color: #e50914; /* 经典红色 */
+    letter-spacing: -1px;
+    margin-right: 2rem;
+}
+
+/* 2. 导航链接：白色文字、移除下划线、增加间距 */
+.nav { 
+    display: flex; 
+    align-items: center; 
+    flex-grow: 1; 
+}
+
+.nav-link, .nav a { 
+    color: #ffffff; 
+    text-decoration: none; 
+    margin-right: 25px; 
+    font-size: 16px;
+    transition: color 0.3s;
+}
+
+.nav-link:hover, .nav a:hover { 
+    color: #e50914; 
+}
+
+/* 对应图中红色高亮的“首页” */
+.nav-link.active, .nav a[href="/"] { 
+    color: #e50914; 
+}
+
+/* 3. 搜索框：椭圆形、深色背景、右侧搜索按钮 */
+.search-box { 
+    display: flex; 
+    align-items: center; 
+    background: #333333; /* 搜索框深灰色背景 */
+    padding: 5px 15px; 
+    border-radius: 20px; /* 圆角矩形/椭圆 */
+    border: 1px solid #444;
+}
+
+.search-box input { 
+    background: transparent; 
+    border: none; 
+    outline: none; 
+    color: #999; 
+    width: 180px; 
+    font-size: 14px;
+}
+
+.search-box button { 
+    background: none; 
+    border: none; 
+    color: #ffffff; 
+    cursor: pointer; 
+    font-size: 14px; 
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding-left: 10px;
+    border-left: 1px solid #555; /* 搜索文字左侧的小分隔线 */
+}
+
+/* 用户欢迎词颜色调暗 */
+.nav span {
+    color: #888;
+    font-size: 14px;
+}
+
+    /* 详情页样式 */
+    .movie-detail-container {
+        min-height: 100vh;
+    }
+
+    .movie-detail {
+        padding: 2rem;
+        max-width: 1200px;
+        margin: 0 auto;
+    }
+
+    .movie-detail-content {
+        display: flex;
+        gap: 2rem;
+        margin-bottom: 3rem;
+    }
+
+    .movie-poster {
+        flex: 0 0 300px;
+    }
+
+    .movie-poster img {
+        width: 100%;
+        border-radius: 8px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    }
+
+    .movie-info {
+        flex: 1;
+    }
+
+    .movie-title {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        color: #ffffff;
+    }
+
+    .movie-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+        color: #b0b0b0;
+    }
+
+    .movie-meta span {
+        background-color: #2a2a2a;
+        padding: 0.3rem 0.8rem;
+        border-radius: 15px;
+    }
+
+    .movie-description h3 {
+        color: #ff4444;
+        margin-bottom: 0.5rem;
+    }
+
+    .movie-description p {
+        line-height: 1.6;
+        color: #d0d0d0;
+    }
+
+    .movie-actions {
+        margin-top: 2rem;
+        display: flex;
+        gap: 1rem;
+    }
+
+    .btn-watchlist, .btn-rate {
+        padding: 0.8rem 1.5rem;
+        border-radius: 25px;
+        border: none;
+        font-weight: bold;
+        cursor: pointer;
+        transition: background-color 0.3s;
+    }
+
+    .btn-watchlist {
+        background-color: #ff4444;
+        color: #ffffff;
+    }
+
+    .btn-watchlist:hover {
+        background-color: #cc0000;
+    }
+
+    .btn-rate {
+        background-color: #2a2a2a;
+        color: #ffffff;
+    }
+
+    .btn-rate:hover {
+        background-color: #444444;
+    }
+
+    /* 推荐区 */
+    .recommendations h2 {
+        color: #ff4444;
+        margin-bottom: 1.5rem;
+    }
+
+    .recommendation-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .rec-card {
+        background-color: #1e1e1e;
+        border-radius: 8px;
+        overflow: hidden;
+        transition: transform 0.3s;
+    }
+
+    .rec-card:hover {
+        transform: translateY(-5px);
+    }
+
+    .rec-card img {
+        width: 100%;
+        height: 250px;
+        object-fit: cover;
+    }
+
+    .rec-title {
+        padding: 0.5rem;
+        font-weight: bold;
+    }
+
+    .rec-genre {
+        padding: 0 0.5rem 0.5rem;
+        color: #b0b0b0;
+        font-size: 0.9rem;
+    }
+    /* 搜索框优化 */
+.search-box {
+    display: flex;
+    align-items: center;
+    background: rgba(255,255,255,0.15);
+    padding: 6px 15px;
+    border-radius: 30px;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.search-box input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: white;
+    width: 140px;
+    transition: 0.4s;
+}
+
+.search-box input:focus {
+    width: 220px;
+}
+
+.search-box button {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+}
+</style>
+{% endblock %}

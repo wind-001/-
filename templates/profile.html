@@ -1,0 +1,405 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>个人中心 - MovieRec</title>
+    <link rel="stylesheet" href="{% static 'css/index.css' %}">
+    <link rel="stylesheet" href="{% static 'css/profile.css' %}">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <div id="global-toast" class="toast-message"></div>
+    <header class="navbar">
+        <div class="logo">MovieRec</div>
+        <nav>
+            <a href="{% url 'index' %}">首页</a>
+            <a href="{% url 'category' %}">分类</a>
+            <a href="/rank/">排行榜</a>
+            <a href="{% url 'profile' %}" class="active">我的</a>
+            <span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+            {% if user.is_authenticated %}
+               <span style="color: darkgrey;font-size: medium;cursor: pointer;">欢迎您! {{ user.username }}</span>
+                <a href="{% url 'logout' %}">注销</a>
+            {% endif %}
+        </nav>
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="搜索电影...">
+            <button onclick="searchMovie()">🔍搜索</button>
+        </div>
+    </header>
+
+    <div class="profile-container">
+        <aside class="profile-sidebar">
+            <div class="user-info-card">
+                <div class="avatar-circle">{{ user.username|first|upper }}</div>
+                <h3>{{ user.username }}</h3>
+                <p>UID: 100{{ user.id }}</p>
+                <p>是否立即开启邮箱推送</p><input type="checkbox"
+                                       id="email-push"
+                                       {% if email_push %}checked{% endif %}
+                                       onchange="toggleEmailPush(this)">
+            </div>
+            <nav class="side-nav">
+                <a href="javascript:void(0)" class="side-item active" onclick="switchTab('overview')">账户概览</a>
+                <a href="javascript:void(0)" class="side-item" onclick="switchTab('collections')">我的收藏</a>
+                <a href="javascript:void(0)" class="side-item" onclick="switchTab('history')">浏览记录</a>
+                <a href="javascript:void(0)" class="side-item" onclick="switchTab('settings')">个性化设置</a>
+            </nav>
+        </aside>
+
+        <main class="profile-content">
+
+            <section id="overview" class="content-panel active">
+                <h2 class="section-title">账户概览</h2>
+                <div class="stats-row">
+                    <div class="stat-card"><h4>{{ collect_count|default:"0" }}</h4><p>我的收藏</p></div>
+                    <div class="stat-card"><h4>{{ history_count|default:"0" }}</h4><p>看过影片</p></div>
+                    <div class="stat-card"><h4>{{ rating_count|default:"0" }}</h4><p>评价次数</p></div>
+                </div>
+
+                <h2 class="section-title" style="margin-top: 40px;">我的个性化画像 (推荐算法依据)</h2>
+                <div class="tag-cloud">
+                    {% if top_genres %}
+                        <span class="tag" style="background: rgba(229,9,20,0.2); border: 1px solid #e50914;">
+                            🎬 常看类型：{{ top_genres|join:" · " }}
+                        </span>
+                    {% endif %}
+                    {% if preferred_genres_cn %}
+                        <span class="tag" style="background: rgba(54,162,235,0.2); border: 1px solid #36a2eb;">
+                            ✏️ 自选偏好：{{ preferred_genres_cn|join:" · " }}
+                        </span>
+                    {% endif %}
+                    {% if avg_rating > 0 %}
+                        <span class="tag">⭐ 平均评分：{{ avg_rating }}</span>
+                    {% endif %}
+                    <span class="tag">📊 活跃等级：{{ activity_level }}</span>
+                    {% if fav_movie_title %}
+                        <span class="tag" style="background: rgba(255,215,0,0.15); border: 1px solid #ffd700;">
+                            ❤️ 近期最爱：《{{ fav_movie_title }}》
+                        </span>
+                    {% endif %}
+                    <span class="tag">{{ fun_title }}</span>
+                </div>
+
+                {% if rec_group %}
+                <h2 class="section-title" style="margin-top: 40px;">🧪 推荐实验数据</h2>
+                <div class="exp-card">
+                    <p>您当前处于 <strong>{{ group_label }}</strong></p>
+                    <p>个人数据：<strong>{{ user_click_count }}</strong> 次点击 | <strong>{{ user_collect_count }}</strong> 次收藏</p>
+                    <div class="exp-bar-chart">
+                        <div class="bar-item">
+                            <span class="bar-label">A组 人均收藏</span>
+                            <div class="bar-track"><div class="bar-fill a-bar" style="width: {{ a_bar_width }}%">{{ a_per_capita }}</div></div>
+                        </div>
+                        <div class="bar-item">
+                            <span class="bar-label">B组 人均收藏</span>
+                            <div class="bar-track"><div class="bar-fill b-bar" style="width: {{ b_bar_width }}%">{{ b_per_capita }}</div></div>
+                        </div>
+                    </div>
+                    <canvas id="expChart" width="300" height="200" style="margin-top: 20px; max-width: 100%;"></canvas>
+                </div>
+                {% endif %}
+            </section>
+
+            <section id="collections" class="content-panel">
+                <h2 class="section-title">我的收藏</h2>
+                <div class="movie-row">
+                    {% for movie in favorite_movies %}
+                    <div class="movie-card" onclick="location.href='/detail/{{ movie.id }}/'"">
+                        <img src="{{ movie.cover_url }}" loading="lazy" width="200" height="300">
+                        <div class="movie-info">
+                            <h3>{{ movie.title }}</h3>
+                            <p>{{ movie.genre }} | ⭐ {{ movie.rating }}</p>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p style="color: #666;">暂无收藏电影</p>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section id="history" class="content-panel">
+                <h2 class="section-title">最近浏览</h2>
+                <div class="movie-row" >
+                    {% for movie in history_movies %}
+                    <div class="movie-card" onclick="location.href='/detail/{{ movie.id }}/'"">
+                        <img src="{{ movie.cover_url }}" loading="lazy" width="200" height="300">
+                        <div class="movie-info">
+                            <h3>{{ movie.title }}</h3>
+                            <p>观影于: {{ movie.view_date|date:"Y-m-d" }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </section>
+
+            <section id="settings" class="content-panel">
+    <h2 class="section-title">安全与个性化配置</h2>
+
+    <div class="settings-grid">
+        <div class="settings-column">
+            <h3 class="sub-title">🔑 账号安全</h3>
+            <form id="securityForm" class="settings-form-mini">
+                {% csrf_token %}
+                <div class="input-group">
+                    <label>新昵称</label>
+                    <input type="text" name="username" value="{{ user.username }}" required>
+                </div>
+                <div class="input-group">
+                    <label>当前密码 <span style="color: #e50914;">*</span></label>
+                    <input type="password" name="old_password" placeholder="验证身份" required>
+                </div>
+                <div class="input-group">
+                    <label>新密码</label>
+                    <input type="password" name="new_password" placeholder="不修改请留空">
+                </div>
+                <button type="submit" class="save-btn red-btn">保存并注销</button>
+            </form>
+        </div>
+
+        <div class="settings-column">
+            <h3 class="sub-title">🤖 推荐引擎配置</h3>
+            <form id="preferenceForm">
+    {% csrf_token %}
+
+    <div class="setting-item" style="flex-direction: column; align-items: flex-start;">
+        <div class="setting-info" style="margin-bottom: 12px;">
+            <span class="setting-label">偏好电影类型</span>
+            <span class="setting-desc">选择你感兴趣的电影类型，将影响推荐结果</span>
+        </div>
+        <div class="genre-grid">
+            {% for en_name, cn_name in all_genres %}
+            <label class="genre-item">
+                <input type="checkbox" name="preferred_genres" value="{{ en_name }}"
+                       {% if en_name in user_preferred_genres %}checked{% endif %}>
+                <span class="genre-label">{{ cn_name }}</span>
+            </label>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="setting-item">
+        <div class="setting-info">
+            <span class="setting-label">探索模式 (Exploration)</span>
+            <span class="setting-desc">基于推荐算法挖掘冷门但高分的电影</span>
+        </div>
+        <label class="switch">
+            <input type="checkbox" name="is_explore"
+                   {% if user.userprofile.is_explore %}checked{% endif %}>
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <div class="setting-item">
+        <div class="setting-info">
+            <span class="setting-label">周一电影周报</span>
+            <span class="setting-desc">每周一早上发送基于算法生成的本周观影清单</span>
+        </div>
+        <label class="switch">
+            <input type="checkbox" name="is_monday_push"
+                   {% if user.userprofile.is_monday_push %}checked{% endif %}>
+            <span class="slider"></span>
+        </label>
+    </div>
+
+    <button type="submit" class="save-btn gray-btn">应用配置</button>
+</form>
+        </div>
+    </div>
+</section>
+
+        </main>
+    </div>
+
+    <script>
+
+        // 推荐配置提交
+        document.getElementById('preferenceForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    formData.append("action", "preference");
+
+    axios.post('/update_profile/', formData, {
+        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    })
+    .then(res => {
+        if (res.data.status === 'success') {
+            showToast("配置更新成功！");
+            // 同步更新概览标签中的自选偏好
+            if (res.data.data && res.data.data.preferred_genres_cn) {
+                updatePreferredGenreTag(res.data.data.preferred_genres_cn);
+            }
+        } else {
+            alert(res.data.message);
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("请求失败");
+    });
+});
+        document.getElementById('securityForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    formData.append("action", "security");
+
+    axios.post('/update_profile/', formData, {
+        headers: { 'X-CSRFToken': getCookie('csrftoken') }
+    })
+    .then(res => {
+        if (res.data.status === 'success') {
+            if (res.data.need_login) {
+                alert("密码已修改，请重新登录");
+                window.location.href = "/login/";
+            } else {
+                alert("修改成功");
+                window.location.reload();
+            }
+        } else {
+            alert(res.data.message);
+        }
+    })
+    .catch(err => {
+        console.error(err);
+        alert("请求失败");
+    });
+});
+        function showToast(message, isError = false) {
+            const toast = document.getElementById('global-toast');
+            toast.innerText = message;
+            toast.style.background = isError ? "rgba(244, 67, 54, 0.9)" : "rgba(76, 175, 80, 0.9)";
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+        }
+
+        function updatePreferredGenreTag(genresCn) {
+            // 查找概览标签中以 ✏️ 开头的 tag 并更新
+            const tags = document.querySelectorAll('#overview .tag');
+            for (const tag of tags) {
+                if (tag.innerText.startsWith('✏️')) {
+                    if (genresCn.length > 0) {
+                        tag.innerText = '✏️ 自选偏好：' + genresCn.join(' · ');
+                        tag.style.display = '';
+                    } else {
+                        tag.style.display = 'none';
+                    }
+                    return;
+                }
+            }
+            // 如果之前没有该标签但有数据，创建一个新标签
+            if (genresCn.length > 0) {
+                const tagCloud = document.querySelector('#overview .tag-cloud');
+                if (tagCloud) {
+                    const newTag = document.createElement('span');
+                    newTag.className = 'tag';
+                    newTag.style.cssText = 'background: rgba(54,162,235,0.2); border: 1px solid #36a2eb;';
+                    newTag.innerText = '✏️ 自选偏好：' + genresCn.join(' · ');
+                    tagCloud.appendChild(newTag);
+                }
+            }
+        }
+
+        function switchTab(tabId) {
+            // 切换菜单激活状态
+            document.querySelectorAll('.side-item').forEach(el => el.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+
+            // 切换内容显隐
+            document.querySelectorAll('.content-panel').forEach(el => el.classList.remove('active'));
+            document.getElementById(tabId).classList.add('active');
+        }
+        function searchMovie() {
+            const searchText = document.getElementById('searchInput').value.trim();
+            if (searchText) {
+                window.location.href = `/search/${searchText}/`;
+            } else {
+                alert("请输入要搜索的电影名称");
+            }
+        }
+        function toggleEmailPush(checkbox) {
+            const isChecked = checkbox.checked;
+
+            axios.post('/sendinfo/', {
+                is_send: isChecked
+            }, {
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken')
+                }
+            })
+            .then(res => {
+                console.log("更新成功", res.data);
+            })
+            .catch(err => {
+                alert("更新失败");
+                checkbox.checked = !checkbox.checked;
+            });
+        }
+
+
+// Django CSRF 必备
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        // Feature 5: A/B 实验图表
+        document.addEventListener('DOMContentLoaded', function() {
+            var chartCanvas = document.getElementById('expChart');
+            if (chartCanvas) {
+                axios.get('/expstats/').then(function(res) {
+                    if (res.data.status === 'success') {
+                        var d = res.data.data;
+                        new Chart(chartCanvas, {
+                            type: 'bar',
+                            data: {
+                                labels: d.labels,
+                                datasets: [
+                                    {
+                                        label: '人均收藏数',
+                                        data: d.collect_per_capita,
+                                        backgroundColor: ['rgba(229,9,20,0.6)', 'rgba(54,162,235,0.6)'],
+                                        borderColor: ['#e50914', '#36a2eb'],
+                                        borderWidth: 2
+                                    },
+                                    {
+                                        label: '人均点击数',
+                                        data: d.click_per_capita,
+                                        backgroundColor: ['rgba(229,9,20,0.3)', 'rgba(54,162,235,0.3)'],
+                                        borderColor: ['#e50914', '#36a2eb'],
+                                        borderWidth: 2
+                                    }
+                                ]
+                            },
+                            options: {
+                                responsive: true,
+                                plugins: {
+                                    legend: { labels: { color: '#ccc' } }
+                                },
+                                scales: {
+                                    x: { ticks: { color: '#ccc' } },
+                                    y: { ticks: { color: '#ccc' }, beginAtZero: true }
+                                }
+                            }
+                        });
+                    }
+                });
+            }
+        });
+
+    </script>
+</body>
+</html>

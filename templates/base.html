@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 页面标题：由子模板的 title 块覆盖 -->
+    <title>{% block title %}MovieRec - 电影推荐系统{% endblock %}</title>
+    <!-- 全局公共样式 -->
+    <style>
+        /* 重置默认样式 */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        /* 页脚样式（固定在底部） */
+        footer {
+            margin-top: auto;
+            padding: 1.5rem;
+            text-align: center;
+            background-color: #1e1e1e;
+            color: #b0b0b0;
+            font-size: 0.9rem;
+        }
+    </style>
+    <!-- 子模板自定义样式块 -->
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- 页面主体内容：由子模板的 content 块覆盖 -->
+    {% block content %}{% endblock %}
+
+    <!-- 网站公共页脚 -->
+    <footer>
+        <p>© 2026 MovieRec 电影推荐系统 ---&nbsp&nbsp&nbsp&nbsp Copyright By 计科2022 Mr Liu     &nbsp&nbsp&nbsp&nbsp&nbsp&nbsp--HUTB </p>
+    </footer>
+
+    <!-- 子模板自定义脚本块（可选） -->
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

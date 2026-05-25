@@ -1,0 +1,391 @@
+/* ========================================
+   基础样式重置 - 与主页 index.css 一致
+   ======================================== */
+body {
+    margin: 0;
+    font-family: 'Segoe UI', 'PingFang SC', sans-serif;
+    background-color: #0b0b0b;
+    color: white;
+    overflow-x: hidden;
+}
+
+/* --- 1. 导航栏样式 --- */
+.navbar {
+    position: fixed;
+    width: 100%;
+    padding: 20px 60px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    backdrop-filter: blur(15px);
+    background: rgba(0,0,0,0.6);
+    z-index: 2000; /* 确保在最顶层 */
+    box-sizing: border-box;
+}
+
+.logo {
+    font-size: 26px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    color: #ff3c3c;
+}
+
+.navbar nav {
+    display: flex;
+    align-items: center;
+}
+
+.navbar a {
+    margin-left: 25px;
+    color: white;
+    text-decoration: none;
+    transition: 0.3s;
+    font-size: 16px;
+}
+
+.navbar a:hover {
+    color: #ff3c3c;
+}
+
+.navbar .active {
+    color: #ff3c3c;
+}
+/* 搜索框优化 */
+.search-box {
+    display: flex;
+    align-items: center;
+    background: rgba(255,255,255,0.15);
+    padding: 6px 15px;
+    border-radius: 30px;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.search-box input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: white;
+    width: 140px;
+    transition: 0.4s;
+}
+
+.search-box input:focus {
+    width: 220px;
+}
+
+.search-box button {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+}
+/* ========================================
+   页面布局 - 为固定导航栏留出空间
+   ======================================== */
+.container {
+    display: flex;
+    padding-top: 100px; /* 给固定导航栏留空间 */
+    min-height: 100vh;
+}
+
+/* ========================================
+   左侧分类面板
+   ======================================== */
+.genre-panel {
+    width: 220px;
+    padding: 30px;
+    border-right: 1px solid #222;
+    flex-shrink: 0;
+}
+
+.genre-panel h3 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    font-size: 18px;
+    border-left: 4px solid #ff3c3c;
+    padding-left: 15px;
+}
+
+.genre-panel li {
+    list-style: none;
+    padding: 12px 0;
+    cursor: pointer;
+    color: #ccc;
+    transition: 0.3s;
+    border-bottom: 1px solid #222;
+    font-size: 14px;
+}
+
+.genre-panel li:hover {
+    color: #ff3c3c;
+}
+
+.genre-panel li.active {
+    color: #ff3c3c;
+    font-weight: bold;
+}
+
+/* ========================================
+   右侧电影区域
+   ======================================== */
+.movie-area {
+    flex: 1;
+    padding: 30px 60px;
+}
+
+/* 排序栏 */
+.sort-bar {
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+.sort-label {
+    color: #888;
+    font-size: 14px;
+}
+
+.sort-btn {
+    background: transparent;
+    border: 1px solid #444;
+    color: #ccc;
+    padding: 6px 18px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: 0.3s;
+    font-size: 14px;
+}
+
+.sort-btn.active {
+    background: #ff3c3c;
+    border-color: #ff3c3c;
+    color: white;
+}
+
+.sort-btn:hover {
+    border-color: #ff3c3c;
+    color: #ff3c3c;
+}
+
+.sort-btn.active:hover {
+    color: white;
+}
+
+/* ========================================
+   电影网格 - 每行5个，与主页一致
+   ======================================== */
+.movie-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 30px 15px;
+    margin-bottom: 40px;
+}
+
+.movie-card {
+    position: relative;
+    aspect-ratio: 2/3;
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+    background: #1a1a1a;
+}
+
+.movie-card:hover {
+    transform: scale(1.05);
+    z-index: 10;
+}
+
+.movie-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+/* 电影信息悬浮层 - 与主页一致 */
+.movie-info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 10px;
+    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.5) 70%, transparent 100%);
+}
+
+.movie-title {
+    font-size: 16px;
+    font-weight: bold;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: white;
+}
+
+.movie-year {
+    font-size: 12px;
+    color: #bbb;
+    margin: 5px 0 0 0;
+}
+
+/* 评分标签 */
+.movie-rating {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #ffc107;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+    z-index: 10;
+}
+
+/* ========================================
+   分页器 - 添加指定跳转功能
+   ======================================== */
+.pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    padding: 30px 0;
+}
+
+.pagination button {
+    background: #ff3c3c;
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: 0.3s;
+    font-size: 14px;
+}
+
+.pagination button:hover:not(:disabled) {
+    background: #e62e2e;
+}
+
+.pagination button:disabled {
+    background: #555;
+    cursor: not-allowed;
+}
+
+#pageInfo {
+    color: #888;
+    font-size: 14px;
+}
+
+/* 分页跳转 */
+.page-jump {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #ccc;
+    font-size: 14px;
+}
+
+.page-jump input {
+    width: 60px;
+    padding: 6px 10px;
+    border: 1px solid #444;
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 14px;
+}
+
+.page-jump input:focus {
+    outline: none;
+    border-color: #ff3c3c;
+}
+
+.page-jump button {
+    padding: 6px 15px;
+    font-size: 12px;
+}
+
+/* ========================================
+   响应式适配 - 与主页一致
+   ======================================== */
+@media (max-width: 1200px) {
+    .movie-grid {
+        grid-template-columns: repeat(4, 1fr);
+    }
+}
+
+@media (max-width: 992px) {
+    .movie-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 768px) {
+    .navbar {
+        padding: 15px 20px;
+    }
+
+    .navbar a {
+        margin-left: 15px;
+        font-size: 14px;
+    }
+
+    .search-box input {
+        width: 100px;
+    }
+
+    .search-box input:focus {
+        width: 150px;
+    }
+
+    .container {
+        flex-direction: column;
+        padding-top: 80px;
+    }
+
+    .genre-panel {
+        width: 100%;
+        border-right: none;
+        border-bottom: 1px solid #222;
+        padding: 20px;
+    }
+
+    .genre-panel ul {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+
+    .genre-panel li {
+        border-bottom: none;
+        padding: 8px 15px;
+        background: rgba(255,255,255,0.05);
+        border-radius: 20px;
+    }
+
+    .movie-area {
+        padding: 20px;
+    }
+
+    .movie-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 15px;
+    }
+
+    .pagination {
+        flex-wrap: wrap;
+        gap: 15px;
+    }
+
+    .page-jump {
+        order: 3;
+        width: 100%;
+        justify-content: center;
+    }
+}

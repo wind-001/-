@@ -1,0 +1,91 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>MovieRec - NCF智能推荐系统</title>
+    <link rel="stylesheet" href="{% static 'css/index.css' %}">
+</head>
+<body>
+    <!-- 导航栏 -->
+    <header class="navbar">
+        <div class="logo">MovieRec</div>
+        <nav>
+            <a href="{% url 'index' %}" class="active">首页</a>
+            <a href="{% url 'category' %}">分类</a>
+            <a href="/rank/">排行榜</a>
+            <a href="{% url 'profile' %}">我的</a>
+
+            <span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+            {% if user.is_authenticated %}
+               <span style="color: darkgrey;font-size: medium;cursor: pointer;">欢迎您! {{ user.username }}</span>
+                <a href="{% url 'logout' %}">注销</a>
+            {% else %}
+                <a href="{% url 'login' %}">登录</a>
+                <a href="{% url 'register' %}">注册</a>
+            {% endif %}
+        </nav>
+        <!-- 搜索框 -->
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="搜索电影...">
+            <button onclick="searchMovie()">🔍搜索</button>
+        </div>
+    </header>
+
+    <!-- 自动轮播Banner -->
+    <section class="hero">
+        {% for slide in carousel_slides %}
+        <div class="hero-slide {% if forloop.first %}active{% endif %}">
+            <img src="{{ slide.image_url }}" loading="eager" width="1200" height="600">
+            <div class="hero-content">
+                <h1>{{ slide.title }}</h1>
+                <p>{{ slide.description }}</p>
+            </div>
+        </div>
+        {% endfor %}
+    </section>
+
+    <!-- 推荐区 -->
+    <section class="movie-section">
+        {% if point_counts > 30 %}
+            <h2>实时推荐(用户画像已完善)</h2>
+            {% elif point_counts >= 0 %}
+            <h2>实时推荐(冷处理阶段)</h2>
+            {% elif point_counts == -1 %}
+            <h2>实时推荐(用户未登录, 请登录后查看推荐)</h2>
+        {% endif %}
+        <div class="movie-row" id="realtimeList">
+            {% for movie in realtime_movies %}
+            <div class="movie-card" onclick="goDetail({{ movie.id }})">
+                <img src="{{ movie.cover_url }}" loading="lazy" width="200" height="300">
+                <div class="movie-info">
+                    <h3>{{ movie.title }}</h3>
+                    <p>{{ movie.genre }} | ⭐ {{ movie.rating }}</p>
+                    <p class="rec-reason">{{ movie.reason }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="movie-section">
+        <h2>猜你喜欢</h2>
+        <div class="movie-row" id="recommendList">
+            {% for movie in movies %}
+            <div class="movie-card" onclick="goDetail({{ movie.id }})">
+                <img src="{{ movie.cover_url }}" loading="lazy" width="200" height="300">
+                <div class="movie-info">
+                    <h3>{{ movie.title }}</h3>
+                    <p>{{ movie.genre }} | ⭐ {{ movie.rating }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+
+
+
+    <!-- 原生JS交互逻辑 -->
+    <script src="{% static 'js/index.js' %}"></script>
+</body>
+</html>

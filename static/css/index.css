@@ -1,0 +1,221 @@
+/* 基础样式重置 */
+body {
+    margin: 0;
+    font-family: 'Segoe UI', 'PingFang SC', sans-serif;
+    background-color: #0b0b0b;
+    color: white;
+    overflow-x: hidden;
+}
+
+/* --- 1. 导航栏样式 --- */
+.navbar {
+    position: fixed;
+    width: 100%;
+    padding: 20px 60px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    backdrop-filter: blur(15px);
+    background: rgba(0,0,0,0.6);
+    z-index: 2000; /* 确保在最顶层 */
+    box-sizing: border-box;
+}
+
+.logo {
+    font-size: 26px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    color: #ff3c3c;
+}
+
+.navbar nav {
+    display: flex;
+    align-items: center;
+}
+
+.navbar a {
+    margin-left: 25px;
+    color: white;
+    text-decoration: none;
+    transition: 0.3s;
+    font-size: 16px;
+}
+
+.navbar a:hover {
+    color: #ff3c3c;
+}
+
+.navbar .active {
+    color: #ff3c3c;
+}
+/* 搜索框优化 */
+.search-box {
+    display: flex;
+    align-items: center;
+    background: rgba(255,255,255,0.15);
+    padding: 6px 15px;
+    border-radius: 30px;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.search-box input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: white;
+    width: 140px;
+    transition: 0.4s;
+}
+
+.search-box input:focus {
+    width: 220px;
+}
+
+.search-box button {
+    background: none;
+    border: none;
+    color: white;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+/* --- 2. Hero 轮播区 --- */
+.hero {
+    position: relative;
+    height: 85vh; /* 稍微缩小高度，露出下方内容提示 */
+    width: 100%;
+    overflow: hidden;
+    background: #000;
+}
+
+.hero-slide {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transition: opacity 1.2s ease-in-out;
+    z-index: 1;
+}
+
+.hero-slide.active {
+    opacity: 1;
+    z-index: 2;
+}
+
+.hero-slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    filter: brightness(0.5);
+}
+
+/* 底部渐变遮罩：解决 Banner 和列表衔接生硬的问题 */
+.hero::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 200px;
+    background: linear-gradient(to top, #0b0b0b, transparent);
+    z-index: 3;
+}
+
+.hero-content {
+    position: absolute;
+    top: 45%;
+    left: 60px;
+    z-index: 10;
+    max-width: 600px;
+    text-shadow: 0 4px 15px rgba(0,0,0,1);
+}
+
+.hero-content h1 {
+    font-size: 48px;
+    margin-bottom: 10px;
+}
+
+/* --- 电影展示区 --- */
+.movie-section {
+    position: relative;
+    padding: 30px 60px; /* 稍微缩小上下内边距 */
+    z-index: 5;
+}
+
+.movie-section h2 {
+    margin-bottom: 20px;
+    font-size: 22px; /* 标题也稍微调小一点，更协调 */
+    border-left: 4px solid #ff3c3c;
+    padding-left: 15px;
+}
+
+.movie-row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr); /* 强制一行 5 个 */
+    gap: 30px 15px;
+}
+
+/* --- 电影卡片 --- */
+.movie-card {
+    position: relative;
+    aspect-ratio: 2/3;
+    border-radius: 6px; /* 圆角稍微调小 */
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.4s cubic-bezier(0.165, 0.84, 0.44, 1);
+    background: #1a1a1a;
+}
+
+.movie-card:hover {
+    transform: scale(1.05); /* 缩放比例从 1.08 降到 1.05，防止遮挡邻近卡片太多 */
+    z-index: 10;
+}
+
+.movie-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* 修正文字覆盖在卡片上而不是全屏乱飘 */
+.movie-info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    padding: 10px; /* 缩小内边距 */
+    background: linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.5) 70%, transparent 100%);
+}
+
+.movie-info h3 {
+    margin: 0;
+    font-size: 16px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis; /* 长标题显示省略号 */
+}
+
+.movie-info p {
+    font-size: 12px;
+    color: #bbb;
+    margin: 5px 0 0 0;
+}
+
+/* Feature 1: 推荐解释文字 */
+.rec-reason {
+    font-size: 11px !important;
+    color: #888 !important;
+    margin-top: 3px !important;
+    font-style: italic;
+}
+
+/* 响应式适配 */
+@media (max-width: 768px) {
+    .navbar { padding: 15px 20px; }
+    .hero-content { left: 20px; }
+    .hero-content h1 { font-size: 28px; }
+    .movie-section { padding: 20px; }
+    .movie-row { grid-template-columns: repeat(2, 1fr); }
+}

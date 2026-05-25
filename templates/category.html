@@ -1,0 +1,208 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>分类 - MovieRec</title>
+    <link rel="stylesheet" href="{% static 'css/category.css' %}">
+    <script type="text/javascript" src="{% static 'js/axios-0.18.0.min.js' %}"></script>
+</head>
+<body>
+
+<!-- 导航栏 - 与主页 index.html 完全一致 -->
+<header class="navbar">
+    <div class="logo">MovieRec</div>
+    <nav>
+        <a href="{% url 'index' %}">首页</a>
+        <a href="{% url 'category' %}" class="active">分类</a>
+        <a href="/rank/">排行榜</a>
+        <a href="{% url 'profile' %}">我的</a>
+
+        <span> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span>
+        {% if user.is_authenticated %}
+           <span style="color: darkgrey;font-size: medium;cursor: pointer;">欢迎您! {{ user.username }}</span>
+            <a href="{% url 'logout' %}">注销</a>
+        {% else %}
+            <a href="{% url 'login' %}">登录</a>
+            <a href="{% url 'register' %}">注册</a>
+        {% endif %}
+    </nav>
+    <!-- 搜索框 - 与主页完全一致 -->
+    <div class="search-box">
+        <input type="text" id="searchInput" placeholder="搜索电影...">
+        <button onclick="searchMovie()">🔍搜索</button>
+    </div>
+</header>
+
+<div class="container">
+    <!-- 左侧分类 -->
+    <aside class="genre-panel">
+        <h3>电影类型</h3>
+        <ul id="genreList">
+            {% for genre in genre_list %}
+                {% if genre.flag == 'True' %}
+                <li class="genre-item active" data-genre="{{ genre.en }}">{{ genre.zh }}</li>
+                {% else %}
+                    <li class="genre-item" data-genre="{{ genre.en }}">{{ genre.zh }}</li>
+                {% endif %}
+            {% endfor %}
+        </ul>
+    </aside>
+
+    <!-- 右侧电影 -->
+    <main class="movie-area">
+        <div class="sort-bar">
+            <span class="sort-label">排序：</span>
+            <button class="sort-btn active" data-sort="year" onclick="changeSort('year', this)">按时间</button>
+            <button class="sort-btn" data-sort="rating" onclick="changeSort('rating', this)">按评分</button>
+        </div>
+
+        <div class="movie-grid" id="movieGrid">
+            {% for movie in movies_list %}
+                <div class="movie-card" onclick="location.href='/detail/{{ movie.id }}/'">
+                    {% if movie.rating > 0 %}
+                        <div class="movie-rating">⭐ {{ movie.rating }}</div>
+                    {% endif %}
+                    <img src="{{ movie.poster_url }}" alt="{{ movie.title }}" loading="lazy" width="200" height="300">
+                    <div class="movie-info">
+                        <p class="movie-title">{{ movie.title }}</p>
+                        <p class="movie-year">{{ movie.year }}</p>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <!-- 分页器 - 带指定跳转功能 -->
+        <div class="pagination">
+            <button id="prevBtn" onclick="changePage('prev')">上一页</button>
+            <span id="pageInfo">第 {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} 页</span>
+            
+            <!-- 指定页码跳转 -->
+            <div class="page-jump">
+                <span>跳转到</span>
+                <input type="number" id="jumpInput" min="1" placeholder="页码">
+                <span>页</span>
+                <button onclick="jumpToPage()">GO</button>
+            </div>
+            
+            <button id="nextBtn" onclick="changePage('next')">下一页</button>
+        </div>
+    </main>
+</div>
+
+<script>
+// 全局状态
+let currentPage = {{ page_obj.number|default:1 }};
+let currentGenre = '{{ genre|default:"Action" }}';
+let currentSort = 'year'; 
+let totalPages = {{ page_obj.paginator.num_pages|default:1 }};
+
+function searchMovie() {
+    const searchText = document.getElementById('searchInput').value.trim();
+    console.log(searchText);
+    if (searchText) {
+        // 可扩展：提交搜索请求到Django后端
+        window.location.href = `/search/${searchText}/`;
+    } else {
+        alert("请输入要搜索的电影名称");
+    }
+}
+
+// 排序切换
+function changeSort(sortType, element) {
+    document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
+    element.classList.add('active');
+    currentSort = sortType;
+    fetchData(currentGenre, 1, sortType);
+}
+
+// 获取数据
+async function fetchData(genre, page, sort = currentSort) {
+    try {
+        const response = await axios.get('/category/', {
+            params: { genre, page, sort },
+            headers: {'X-Requested-With': 'XMLHttpRequest'}
+        });
+
+        const data = response.data;
+        currentPage = data.current_page;
+        currentGenre = genre;
+        currentSort = sort;
+        totalPages = data.total_pages;
+
+        renderMovieGrid(data.movies);
+        
+        document.getElementById('pageInfo').innerText = `第 ${data.current_page} / ${data.total_pages} 页`;
+        document.getElementById('prevBtn').disabled = !data.has_previous;
+        document.getElementById('nextBtn').disabled = !data.has_next;
+
+    } catch (error) {
+        console.error('请求失败:', error);
+    }
+}
+
+// 渲染电影网格
+function renderMovieGrid(movies) {
+    const movieGrid = document.getElementById('movieGrid');
+    movieGrid.innerHTML = ''; 
+    
+    movies.forEach(movie => {
+        const ratingTag = movie.rating > 0 ? `<div class="movie-rating">⭐ ${movie.rating}</div>` : '';
+        const card = `
+          <div class="movie-card" onclick="location.href='/detail/${movie.id}/'">
+            ${ratingTag}
+            <img src="${movie.poster_url}" alt="${movie.title}" loading="lazy">
+            <div class="movie-info">
+                <p class="movie-title">${movie.title}</p>
+                <p class="movie-year">${movie.year || ''}</p>
+            </div>
+          </div>
+        `;
+        movieGrid.insertAdjacentHTML('beforeend', card);
+    });
+}
+
+// 分页切换
+function changePage(action) {
+    const targetPage = action === 'next' ? currentPage + 1 : currentPage - 1;
+    if (targetPage >= 1 && targetPage <= totalPages) {
+        fetchData(currentGenre, targetPage, currentSort);
+    }
+}
+
+// 指定页码跳转
+function jumpToPage() {
+    const input = document.getElementById('jumpInput');
+    const targetPage = parseInt(input.value);
+    
+    if (!targetPage || targetPage < 1) {
+        alert('请输入有效的页码');
+        return;
+    }
+    if (targetPage > totalPages) {
+        alert(`最大页码为 ${totalPages}`);
+        return;
+    }
+    if (targetPage !== currentPage) {
+        fetchData(currentGenre, targetPage, currentSort);
+    }
+    input.value = '';
+}
+
+// 回车跳转
+document.getElementById('jumpInput').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') jumpToPage();
+});
+
+// 分类点击事件
+document.querySelectorAll('.genre-item').forEach(item => {
+    item.addEventListener('click', function() {
+        document.querySelectorAll('.genre-item').forEach(li => li.classList.remove('active'));
+        this.classList.add('active');
+        currentGenre = this.dataset.genre; 
+        fetchData(currentGenre, 1, currentSort);
+    });
+});
+</script>
+</body>
+</html>
