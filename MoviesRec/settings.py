@@ -86,7 +86,7 @@ DATABASES = {
         'ENGINE': 'django.db.backends.mysql',
         'NAME': 'movies_rec',
         'USER':'root',
-        'PASSWORD':'123456',
+        'PASSWORD':'your_db_password',
         'HOST':'127.0.0.1',
         'PORT':'3306',
     }
@@ -195,5 +195,5 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.qq.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = '1042018684@qq.com'
-EMAIL_HOST_PASSWORD = '授权码'
+EMAIL_HOST_USER = 'your_email@qq.com'
+EMAIL_HOST_PASSWORD = 'your_smtp_auth_code'
